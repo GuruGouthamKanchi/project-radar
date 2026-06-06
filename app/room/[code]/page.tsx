@@ -48,6 +48,7 @@ export default function TrackerDashboard() {
   const [firebaseConnected, setFirebaseConnected] = useState<boolean | null>(null);
   const [gpsActive, setGpsActive] = useState(true);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deferredPrompt, setDeferredPrompt] = useState<any | null>(null);
 
   // Monitor Firebase Realtime Database connection status
@@ -92,6 +93,7 @@ export default function TrackerDashboard() {
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState(0);
 
   const [sosActive, setSosActive] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sosData, setSosData] = useState<Record<string, any> | null>(null);
   const [sosTriageMessage, setSosTriageMessage] = useState<string | null>(null);
   const lastProcessedSosRef = useRef<string | null>(null);
@@ -114,7 +116,7 @@ export default function TrackerDashboard() {
   }, [code]);
 
   // Broadcast SOS message to all peers via Web Push
-  const broadcastSosPush = async (triageMessage: string) => {
+  const broadcastSosPush = useCallback(async (triageMessage: string) => {
     try {
       const subsRef = ref(db, `rooms/${code}/subscriptions`);
       const snapshot = await get(subsRef);
@@ -140,7 +142,7 @@ export default function TrackerDashboard() {
     } catch (err) {
       console.error("Failed to broadcast SOS push alerts:", err);
     }
-  };
+  }, [code]);
 
   // Run AI SOS triage coordinator on change
   useEffect(() => {
@@ -182,7 +184,7 @@ export default function TrackerDashboard() {
     };
 
     triggerSosTriage();
-  }, [sosActive, sosData, people]);
+  }, [sosActive, sosData, people, broadcastSosPush]);
 
   const fetchAIInsight = useCallback(async () => {
     if (!trackerPos) return;

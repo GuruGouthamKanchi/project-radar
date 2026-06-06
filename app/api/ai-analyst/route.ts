@@ -20,10 +20,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const inside: any[] = [];
-    const outside: any[] = [];
+    interface Peer {
+      lat: number;
+      lng: number;
+      uid?: string;
+      name?: string;
+      lastSeen?: number;
+      active?: boolean;
+      heading?: number | null;
+      ts?: number;
+      color?: string;
+    }
 
-    peers.forEach((peer: any) => {
+    const inside: (Peer & { distanceMeters: number })[] = [];
+    const outside: (Peer & { distanceMeters: number })[] = [];
+
+    peers.forEach((peer: Peer) => {
       const dist = haversine(adminLocation.lat, adminLocation.lng, peer.lat, peer.lng);
       const updatedPeer = { ...peer, distanceMeters: dist };
       if (dist <= radiusMeters) {

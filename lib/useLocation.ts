@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ref, set, update, onDisconnect } from "firebase/database";
+import { ref, set, onDisconnect } from "firebase/database";
 import { db } from "./firebase";
 import { haversine } from "./haversine";
 import { LocationPayload } from "./locationValidator";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useLocation(roomCode: string, encryptionKey?: string) {
   const [isTracking, setIsTracking] = useState(false);
   const [error, setError] = useState<string | null>(null);
