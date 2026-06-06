@@ -5,19 +5,32 @@ import { useRouter } from "next/navigation";
 import { Radar, Radio, Shield } from "lucide-react";
 
 import { generateE2EKey } from "@/lib/crypto";
+import { ref, set } from "firebase/database";
+import { db } from "@/lib/firebase";
 
 export default function Home() {
   const router = useRouter();
   const [inputCode, setInputCode] = useState("");
   const [error, setError] = useState("");
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
     for (let i = 0; i < 6; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const e2eKey = generateE2EKey();
+    
+    try {
+      const metaRef = ref(db, `rooms/${code.toLowerCase()}/meta`);
+      await set(metaRef, {
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+      });
+    } catch (err) {
+      console.error("Failed to write room metadata to Firebase:", err);
+    }
+
     router.push(`/room/${code.toLowerCase()}#${e2eKey}`);
   };
 

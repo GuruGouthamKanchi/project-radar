@@ -5,7 +5,9 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useLocation } from "@/lib/useLocation";
 import ConsentScreen from "@/components/ConsentScreen";
-import { ShieldAlert, Power, Info } from "lucide-react";
+import { ShieldAlert, Power, Info, AlertOctagon } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { ref, set } from "firebase/database";
 
 const TrackedMiniMap = dynamic(() => import("@/components/TrackedMiniMap"), {
   ssr: false,
@@ -23,9 +25,45 @@ export default function ShareLocationPage() {
     }
   }, []);
 
-  const { isTracking, error, currentLocation, startTracking, stopTracking } =
+  const { isTracking, error, currentLocation, startTracking, stopTracking, uid } =
     useLocation(code, e2eKey);
   const [displayName, setDisplayName] = useState("");
+
+  const handleSOSClick = async () => {
+    if (!currentLocation) {
+      alert("GPS coordinates not acquired yet. Cannot trigger SOS.");
+      return;
+    }
+    const confirmSOS = window.confirm("Send emergency alert to all room members?");
+    if (confirmSOS) {
+      try {
+        const sosRef = ref(db, `rooms/${code}/sos/${uid}`);
+        await set(sosRef, {
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+          ts: Date.now(),
+          peerId: uid,
+          message: "SOS activated",
+          nickname: displayName || "Anonymous",
+        });
+        alert("EMERGENCY SOS ALERT TRANSMITTED.");
+      } catch (err) {
+        console.error("SOS transmission failed:", err);
+        alert("SOS TRANSMISSION FAILED");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedName = localStorage.getItem("proximax_nickname");
+      const storedColor = localStorage.getItem("proximax_color");
+      if (storedName && storedColor) {
+        setDisplayName(storedName);
+        startTracking(storedName);
+      }
+    }
+  }, [startTracking]);
 
   const handleConsent = (name: string) => {
     setDisplayName(name);
@@ -116,6 +154,14 @@ export default function ShareLocationPage() {
 
       {/* Footer / Control Button */}
       <footer className="w-full max-w-md mx-auto mb-4 flex flex-col gap-3 z-20">
+        <button
+          onClick={handleSOSClick}
+          className="w-full py-3.5 bg-red-600/20 border border-red-500 text-red-500 font-mono font-bold text-xs uppercase tracking-widest rounded hover:bg-red-600 hover:text-white transition-all shadow-[0_0_15px_rgba(220,38,38,0.15)] flex items-center justify-center gap-2 animate-pulse"
+        >
+          <AlertOctagon className="w-4 h-4" />
+          ACTIVATE EMERGENCY SOS
+        </button>
+
         <button
           onClick={stopTracking}
           className="w-full py-3.5 bg-warning/20 border border-warning text-warning font-mono font-bold text-xs uppercase tracking-widest rounded hover:bg-warning hover:text-bg-primary transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] flex items-center justify-center gap-2"

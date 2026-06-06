@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, SVGOverlay, useMap, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, SVGOverlay, useMap, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import { haversine } from "@/lib/haversine";
 
@@ -13,13 +13,18 @@ interface TrackedPerson {
   lastSeen: number;
   active: boolean;
   heading: number | null;
+  ts?: number;
+  stalenessLabel?: string;
+  color?: string;
 }
 
 interface RadarMapProps {
   trackerPos: { lat: number; lng: number } | null;
   people: TrackedPerson[];
   alertRadius: number;
-  history?: Record<string, { lat: number; lng: number }[]>;
+  history?: Record<string, { lat: number; lng: number; ts: number }[]>;
+  focusedPeerId?: string | null;
+  trailEnabled?: boolean;
 }
 
 // Recenter control
@@ -49,37 +54,29 @@ const createTrackerIcon = () => {
   });
 };
 
-const createTrackedIcon = (name: string, isInside: boolean, isOffline: boolean, heading: number | null) => {
-  const colorClass = isOffline
-    ? "bg-text-dim border-text-muted"
-    : isInside
-    ? "bg-success border-success"
-    : "bg-accent border-accent";
-  const pulseClass = isOffline
-    ? ""
-    : isInside
-    ? "animate-pulse-success"
-    : "animate-pulse-accent";
-  const textColorClass = isOffline
-    ? "text-text-muted"
-    : isInside
-    ? "text-success"
-    : "text-accent";
-
+const createTrackedIcon = (name: string, isInside: boolean, isOffline: boolean, heading: number | null, stalenessLabel: string = "just now", chosenColor?: string, isFocused?: boolean) => {
+  const dotColor = isOffline ? "#94a3b8" : (chosenColor || (isInside ? "#22c55e" : "#38bdf8"));
   const headingStyle = heading !== null ? `transform: rotate(${heading}deg);` : "display: none;";
+  const spinRing = isFocused
+    ? `<div class="absolute w-8 h-8 rounded-full border-2 border-dashed animate-spin z-0" style="animation-duration: 4s; border-color: ${dotColor}; box-shadow: 0 0 10px ${dotColor};"></div>`
+    : "";
 
   return L.divIcon({
     className: "custom-marker-icon",
     html: `
-      <div class="relative flex items-center justify-center w-6 h-6">
-        <div class="absolute w-3 h-3 rounded-full ${colorClass} ${pulseClass} border-2 border-bg-primary z-10"></div>
+      <div class="relative flex items-center justify-center w-6 h-6 font-mono-code">
+        ${spinRing}
+        <div class="absolute w-3 h-3 rounded-full border-2 border-bg-primary z-10 animate-pulse" style="background-color: ${dotColor}; border-color: ${dotColor}; box-shadow: 0 0 8px ${dotColor};"></div>
         <div class="absolute w-8 h-8 flex items-center justify-center pointer-events-none" style="${headingStyle}">
-          <svg width="32" height="32" viewBox="0 0 32 32" class="${textColorClass} fill-current opacity-85" xmlns="http://www.w3.org/2000/svg">
+          <svg width="32" height="32" viewBox="0 0 32 32" class="fill-current opacity-85" style="color: ${dotColor};" xmlns="http://www.w3.org/2000/svg">
             <polygon points="16,2 21,11 16,8 11,11" />
           </svg>
         </div>
-        <div class="absolute -top-6 bg-bg-card border border-border px-1.5 py-0.5 rounded text-[8px] font-mono-code font-bold text-text-primary uppercase tracking-wider whitespace-nowrap shadow-md">
+        <div class="absolute left-4 bg-bg-card border border-border px-1.5 py-0.5 rounded text-[8px] font-bold text-text-primary uppercase tracking-wider whitespace-nowrap shadow-md">
           ${name.toUpperCase()}
+        </div>
+        <div class="absolute top-4 text-[8px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+          ${stalenessLabel}
         </div>
       </div>
     `,
@@ -88,8 +85,47 @@ const createTrackedIcon = (name: string, isInside: boolean, isOffline: boolean, 
   });
 };
 
-export default function RadarMap({ trackerPos, people, alertRadius, history }: RadarMapProps) {
+export default function RadarMap({ trackerPos, people, alertRadius, history, focusedPeerId, trailEnabled = true }: RadarMapProps) {
   const [isClient, setIsClient] = useState(false);
+  const [heatmapEnabled, setHeatmapEnabled] = useState(true);
+
+  // Recompute clusters every time the peer list updates
+  const getDensityClusters = () => {
+    const validPeers = people.filter(
+      (p) => p.lat && p.lng && p.active && (Date.now() - p.lastSeen) / 1000 <= 60
+    );
+    const uniqueClusters = new Map<string, { lat: number; lng: number; count: number }>();
+
+    validPeers.forEach((peer) => {
+      // Find all peers within 100m using the existing Haversine function
+      const nearby = validPeers.filter((other) => {
+        const dist = haversine(peer.lat, peer.lng, other.lat, other.lng);
+        return dist <= 100;
+      });
+
+      if (nearby.length >= 3) {
+        const sumLat = nearby.reduce((sum, p) => sum + p.lat, 0);
+        const sumLng = nearby.reduce((sum, p) => sum + p.lng, 0);
+        const avgLat = sumLat / nearby.length;
+        const avgLng = sumLng / nearby.length;
+
+        // Deduplicate using a unique key of sorted peer uids
+        const key = nearby
+          .map((p) => p.uid)
+          .sort()
+          .join(",");
+        uniqueClusters.set(key, { lat: avgLat, lng: avgLng, count: nearby.length });
+      }
+    });
+
+    return Array.from(uniqueClusters.values());
+  };
+
+  const getOpacityForCount = (count: number) => {
+    if (count >= 8) return 0.5;
+    if (count >= 5) return 0.35;
+    return 0.2;
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -121,6 +157,20 @@ export default function RadarMap({ trackerPos, people, alertRadius, history }: R
 
   return (
     <div className="w-full h-full relative overflow-hidden rounded border border-border bg-bg-primary">
+      {trackerPos && (
+        <div className="absolute top-4 right-4 z-[1000]">
+          <button
+            onClick={() => setHeatmapEnabled((prev) => !prev)}
+            className={`px-3 py-1.5 border rounded text-[9px] font-mono-code font-bold tracking-wider uppercase transition-all shadow-md ${
+              heatmapEnabled
+                ? "bg-accent/20 border-accent text-accent hover:bg-accent/30"
+                : "bg-bg-secondary/90 border-border text-text-muted hover:border-text-muted hover:text-text-primary"
+            }`}
+          >
+            {heatmapEnabled ? "HEATMAP ON" : "HEATMAP OFF"}
+          </button>
+        </div>
+      )}
       {!trackerPos ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-primary z-50 font-mono-code text-xs text-text-muted gap-2">
           <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
@@ -176,11 +226,13 @@ export default function RadarMap({ trackerPos, people, alertRadius, history }: R
             </SVGOverlay>
           )}
 
-          {/* Breadcrumb Trails */}
-          {people.map((person) => {
-            if (!history || !history[person.uid] || history[person.uid].length < 2) return null;
-            const points = history[person.uid].map((p) => [p.lat, p.lng] as L.LatLngExpression);
-            
+          {/* Breadcrumb Trails of Dots */}
+          {trailEnabled && people.map((person) => {
+            if (!history || !history[person.uid]) return null;
+            const points = history[person.uid];
+            const N = points.length;
+            if (N === 0) return null;
+
             const distance = trackerPos && person.lat && person.lng
               ? haversine(trackerPos.lat, trackerPos.lng, person.lat, person.lng)
               : Infinity;
@@ -189,24 +241,49 @@ export default function RadarMap({ trackerPos, people, alertRadius, history }: R
             
             const color = isOffline
               ? "#94a3b8"
-              : isInside
-              ? "#22c55e"
-              : "#38bdf8";
+              : (person.color || (isInside ? "#22c55e" : "#38bdf8"));
 
-            return (
-              <Polyline
-                key={`trail-${person.uid}`}
-                positions={points}
-                pathOptions={{
-                  color: color,
-                  weight: 2.5,
-                  opacity: 0.5,
-                  dashArray: "4, 6",
-                  lineCap: "round",
-                }}
-              />
-            );
+            return points.map((p, i) => {
+              const ratio = N > 1 ? i / (N - 1) : 1;
+              // opacity progressively lower from 100% down to 10% (oldest)
+              const opacity = 0.1 + 0.9 * ratio;
+              // size decreases from full size down to 30% size (oldest)
+              const sizeRatio = 0.3 + 0.7 * ratio;
+              const radius = 6 * sizeRatio;
+
+              return (
+                <CircleMarker
+                  key={`trail-${person.uid}-${i}-${p.ts}`}
+                  center={[p.lat, p.lng]}
+                  radius={radius}
+                  pathOptions={{
+                    fillColor: color,
+                    fillOpacity: opacity,
+                    stroke: false,
+                  }}
+                />
+              );
+            });
           })}
+
+          {/* Density Heatmap Overlay */}
+          {heatmapEnabled &&
+            getDensityClusters().map((cluster, idx) => {
+              const opacity = getOpacityForCount(cluster.count);
+              return (
+                <CircleMarker
+                  key={`heatmap-${idx}-${cluster.lat}-${cluster.lng}`}
+                  center={[cluster.lat, cluster.lng]}
+                  radius={80}
+                  pathOptions={{
+                    fillColor: "rgb(255, 100, 0)",
+                    fillOpacity: opacity,
+                    stroke: false,
+                    interactive: false,
+                  }}
+                />
+              );
+            })}
 
           {/* Tracked People Markers */}
           {people.map((person) => {
@@ -220,7 +297,7 @@ export default function RadarMap({ trackerPos, people, alertRadius, history }: R
               <Marker
                 key={person.uid}
                 position={[person.lat, person.lng]}
-                icon={createTrackedIcon(person.name, isInside, isOffline, person.heading)}
+                icon={createTrackedIcon(person.name, isInside, isOffline, person.heading, person.stalenessLabel, person.color, person.uid === focusedPeerId)}
               />
             );
           })}

@@ -5,9 +5,12 @@ ProximaX is a production-ready, consent-based geolocation tracking web applicati
 ## Core Features
 1. **Radar Dashboard**: Multi-layered SVG concentric alert bounds with animated sweep scan.
 2. **Proximity Alerts**: Client-side geodesic distance threshold triggers real-time visual banners and background OS push notifications.
-3. **No App Installs**: Works entirely in standard mobile/desktop browsers using `navigator.geolocation.watchPosition`.
-4. **Decentralized Rooms**: 6-character alphanumeric room codes allow immediate tracking without any authentication.
-5. **Broadcaster Consent Node**: Live location sharing requires explicit consent and provides a "Stop Sharing" panic button.
+3. **Session-only Movement Trails**: Live client-side trail history of the last 20 peer coordinates using opacity and size-scaled dots with a HUD toggle.
+4. **Density Heatmap Overlay**: Identifies clusters of 3+ peers within 100m, rendering a density-scaled midpoint circle with a HUD toggle.
+5. **AI Sitrep Analyst**: Generates real-time battlefield tactical intelligence summaries and anomaly flags every 30 seconds using Google Gemini.
+6. **Natural Language Command Bar**: Controls the radar panel (focus peer, broadcast message, set radius) using natural language command interpretation.
+7. **SOS Emergency Triage**: Broadcasts priority push alerts to all room members and triggers an AI disaster response plan when a peer signals emergency SOS.
+8. **No App Installs**: Works entirely in standard mobile/desktop browsers using `navigator.geolocation.watchPosition` (PWA support included).
 
 ---
 
@@ -70,6 +73,12 @@ VAPID_PUBLIC_KEY=your_generated_vapid_public_key
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_generated_vapid_public_key
 VAPID_PRIVATE_KEY=your_generated_vapid_private_key
 VAPID_MAILTO=mailto:admin@yourdomain.com
+
+# Cleanup Room Secret (API protection)
+CLEANUP_SECRET=your_secure_cleanup_token
+
+# Google Gemini AI (for Proximity sitrep analyst & tactical command bar & SOS triage)
+GEMINI_API_KEY=your_google_gemini_api_key
 ```
 *Note: We expose the public key to the browser client with the `NEXT_PUBLIC_` prefix so the client can initialize the subscription object.*
 

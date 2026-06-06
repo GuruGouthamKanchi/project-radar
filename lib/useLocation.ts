@@ -1,27 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ref, set, update } from "firebase/database";
+import { ref, set, update, onDisconnect } from "firebase/database";
 import { db } from "./firebase";
 import { haversine } from "./haversine";
-import { encryptLocation } from "./crypto";
-
-export interface TrackedLocation {
-  lat: number;
-  lng: number;
-  name: string;
-  lastSeen: number;
-  heading: number | null;
-  active: boolean;
-}
-
-interface LocationPayload {
-  name: string;
-  lastSeen: number;
-  active: boolean;
-  lat?: number;
-  lng?: number;
-  heading?: number | null;
-  encrypted?: string;
-}
+import { LocationPayload } from "./locationValidator";
 
 export function useLocation(roomCode: string, encryptionKey?: string) {
   const [isTracking, setIsTracking] = useState(false);
@@ -93,16 +74,10 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
   const uploadLocation = async () => {
     if (!latestLocationRef.current || !uidRef.current) return;
 
-    const path = `rooms/${roomCode}/people/${uidRef.current}`;
-    const basePayload: LocationPayload = {
-      name: nameRef.current,
-      lastSeen: Date.now(),
-      active: true,
-    };
+    const path = `rooms/${roomCode}/peers/${uidRef.current}`;
 
     const lat2 = latestLocationRef.current.lat;
     const lng2 = latestLocationRef.current.lng;
-    const heading2 = latestLocationRef.current.heading;
 
     const lat1 = lastReportedLocationRef.current?.lat;
     const lng1 = lastReportedLocationRef.current?.lng;
@@ -126,30 +101,14 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
       lastReportedLocationRef.current = { lat: lat2, lng: lng2 };
     }
 
-    const payload: LocationPayload = { ...basePayload };
-
-    if (encryptionKey) {
-      try {
-        const encString = await encryptLocation(
-          {
-            lat: lat2,
-            lng: lng2,
-            heading: heading2,
-          },
-          encryptionKey
-        );
-        payload.encrypted = encString;
-      } catch (e) {
-        console.error("Encryption failed:", e);
-        payload.lat = lat2;
-        payload.lng = lng2;
-        payload.heading = heading2;
-      }
-    } else {
-      payload.lat = lat2;
-      payload.lng = lng2;
-      payload.heading = heading2;
-    }
+    const payload: LocationPayload = {
+      lat: lat2,
+      lng: lng2,
+      ts: Date.now(),
+      peerId: uidRef.current,
+      nickname: (typeof window !== "undefined" && localStorage.getItem("proximax_nickname")) || nameRef.current,
+      color: (typeof window !== "undefined" && localStorage.getItem("proximax_color")) || "#00FF41",
+    };
 
     if (typeof window !== "undefined" && !navigator.onLine) {
       const queueStr = localStorage.getItem("proximax_offline_queue");
@@ -162,6 +121,15 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
     try {
       const userRef = ref(db, path);
       await set(userRef, payload);
+
+      // Setup onDisconnect cleanup
+      await onDisconnect(userRef).remove();
+      const sosRef = ref(db, `rooms/${roomCode}/sos/${uidRef.current}`);
+      await onDisconnect(sosRef).remove();
+
+      // Update room last activity metadata
+      const metaActivityRef = ref(db, `rooms/${roomCode}/meta/lastActivity`);
+      await set(metaActivityRef, Date.now());
     } catch (err) {
       console.error("Firebase upload failed, queueing offline:", err);
       if (typeof window !== "undefined") {
@@ -244,11 +212,13 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
     }
 
     if (uidRef.current) {
-      const userRef = ref(db, `rooms/${roomCode}/people/${uidRef.current}`);
+      const userRef = ref(db, `rooms/${roomCode}/peers/${uidRef.current}`);
+      const sosRef = ref(db, `rooms/${roomCode}/sos/${uidRef.current}`);
       try {
-        await update(userRef, { active: false });
+        await set(userRef, null);
+        await set(sosRef, null);
       } catch (err) {
-        console.error("Failed to update status on stop:", err);
+        console.error("Failed to remove location/SOS on stop:", err);
       }
     }
 

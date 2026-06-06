@@ -13,13 +13,21 @@ export default function ConsentScreen({
   onConsent,
 }: ConsentScreenProps) {
   const [name, setName] = useState("");
+  const [color, setColor] = useState("#00FF41");
   const [isLoading, setIsLoading] = useState(false);
+
+  const colors = ["#00FF41", "#FF6B35", "#00D4FF", "#FF0080", "#FFD700", "#9B59B6"];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
     setIsLoading(true);
     setTimeout(() => {
-      onConsent(name.trim() || "Anonymous");
+      localStorage.setItem("proximax_nickname", trimmedName);
+      localStorage.setItem("proximax_color", color);
+      onConsent(trimmedName);
       setIsLoading(false);
     }, 800);
   };
@@ -47,20 +55,41 @@ export default function ConsentScreen({
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
             <div className="flex flex-col gap-1 text-left">
               <label htmlFor="name-input" className="ui-label">
-                DISPLAY NAME (OPTIONAL)
+                DISPLAY NAME (REQUIRED)
               </label>
               <input
                 id="name-input"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="ANONYMOUS"
-                maxLength={20}
+                placeholder="ENTER NICKNAME"
+                maxLength={24}
+                required
                 className="w-full px-3 py-2 text-sm font-mono-code bg-bg-secondary border border-border rounded text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent uppercase"
               />
             </div>
 
-            <div className="border-t border-border/50 my-2" />
+            <div className="flex flex-col gap-1.5 text-left mt-1">
+              <span className="ui-label">BEACON COLOR (REQUIRED)</span>
+              <div className="flex gap-3 justify-center py-2 bg-bg-secondary/40 border border-border/50 rounded">
+                {colors.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className="w-6 h-6 rounded-full transition-all border-2 relative flex items-center justify-center active:scale-95"
+                    style={{
+                      backgroundColor: c,
+                      borderColor: color === c ? "#ffffff" : "transparent",
+                      boxShadow: color === c ? `0 0 10px ${c}` : "none",
+                    }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-border/50 my-1" />
 
             <div className="flex flex-col gap-2 items-center text-left bg-bg-secondary/40 p-3 border border-border/50 rounded">
               <div className="flex gap-2">
