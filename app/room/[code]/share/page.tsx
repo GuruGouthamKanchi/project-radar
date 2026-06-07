@@ -25,6 +25,7 @@ export default function ShareLocationPage() {
   const [formError, setFormError] = useState('');
   const [sosActive, setSosActive] = useState(false);
   const [isSosLoading, setIsSosLoading] = useState(false);
+  const [e2eKey, setE2eKey] = useState('');
 
   const watchIdRef = useRef<number | null>(null);
   const peerIdRef = useRef<string>('');
@@ -36,6 +37,9 @@ export default function ShareLocationPage() {
       const storedColor = localStorage.getItem("proximax_color");
       if (storedName) setDisplayName(storedName);
       if (storedColor) setBeaconColor(storedColor);
+      if (window.location.hash) {
+        setE2eKey(window.location.hash.slice(1));
+      }
     }
   }, []);
 
@@ -88,7 +92,8 @@ export default function ShareLocationPage() {
               peerIdRef.current,
               position,
               displayName.trim(),
-              beaconColor
+              beaconColor,
+              e2eKey
             );
           } catch (err) {
             console.error('writeLocation failed:', err);

@@ -1,6 +1,7 @@
 import { ref, set, remove, onDisconnect } from "firebase/database";
 import { db } from "./firebase";
 import { validateLocationPayload, LocationPayload } from "./locationValidator";
+import { encryptLocation } from "./crypto";
 
 /**
  * Builds a LocationPayload from GeolocationPosition, validates it,
@@ -11,9 +12,10 @@ export async function writeLocation(
   peerId: string,
   position: GeolocationPosition,
   nickname?: string,
-  color?: string
+  color?: string,
+  e2eKey?: string
 ): Promise<void> {
-  const payload: LocationPayload = {
+  const payload: LocationPayload & { encrypted?: string } = {
     lat: position.coords.latitude,
     lng: position.coords.longitude,
     ts: Date.now(),
@@ -30,6 +32,13 @@ export async function writeLocation(
 
   if (typeof position.coords.accuracy === "number" && position.coords.accuracy > 0) {
     payload.accuracy = position.coords.accuracy;
+  }
+
+  if (e2eKey && e2eKey.trim() !== "") {
+    payload.encrypted = await encryptLocation(
+      { lat: payload.lat, lng: payload.lng, heading: null },
+      e2eKey
+    );
   }
 
   const validation = validateLocationPayload(payload);
