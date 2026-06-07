@@ -177,7 +177,7 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
       const { latitude, longitude, heading } = position.coords;
       const newLoc = { lat: latitude, lng: longitude, heading: heading ?? null };
       latestLocationRef.current = newLoc;
-      setCurrentLocation((prev) => {
+      setCurrentLocation(() => {
         // functional update to avoid stale closures
         return { lat: latitude, lng: longitude, heading: heading ?? null };
       });
