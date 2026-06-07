@@ -37,3 +37,9 @@ next-env.d.ts
 
 # codebase analysis
 codebase_analysis.md
+
+# testing and config files to ignore
+__tests__/
+.firebaserc
+firebase.json
+
