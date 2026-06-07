@@ -30,7 +30,7 @@ Respond ONLY with a raw JSON object and nothing else. Do not wrap it in markdown
   "closestPeerId": "The peerId of the closest peer from the list, or null if none"
 }`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
       method: "POST",
@@ -45,7 +45,7 @@ Respond ONLY with a raw JSON object and nothing else. Do not wrap it in markdown
         ],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 200,
+          maxOutputTokens: 2048,
         },
       }),
     });
