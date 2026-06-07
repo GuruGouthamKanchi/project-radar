@@ -61,7 +61,7 @@ Respond ONLY with a raw JSON object and nothing else. Do not wrap it in markdown
   "level": "LOW | MEDIUM | HIGH with one-line reason (e.g. 'MEDIUM (2 contacts inside alert zone)')"
 }`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
       method: "POST",
