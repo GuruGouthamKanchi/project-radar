@@ -1,3 +1,5 @@
+![ProximaX Banner](public/banner.png)
+
 # 📡 ProximaX — Real-Time Location Radar
 
 <div align="center">
@@ -7,10 +9,11 @@
 **NO APP. NO INSTALL. JUST OPEN A LINK.**
 
 [![Build](https://img.shields.io/badge/BUILD-PASSING-00FF41?style=flat-square&labelColor=000000)](https://project-radar-hazel.vercel.app)
-[![Live](https://img.shields.io/badge/DEMO-LIVE-00FF41?style=flat-square&labelColor=000000)](https://project-radar-hazel.vercel.app)
+[![Tests](https://img.shields.io/badge/TESTS-39%2F39%20PASSING-00FF41?style=flat-square&labelColor=000000)](https://github.com/GuruGouthamKanchi/project-radar)
 [![Next.js](https://img.shields.io/badge/Next.js-14-white?style=flat-square&logo=next.js&labelColor=000000)](https://nextjs.org)
 [![Firebase](https://img.shields.io/badge/Firebase-RTDB-orange?style=flat-square&logo=firebase&labelColor=000000)](https://firebase.google.com)
 [![AI](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-blue?style=flat-square&logo=google&labelColor=000000)](https://ai.google.dev)
+[![Encrypted](https://img.shields.io/badge/E2E-AES--GCM%20ENCRYPTED-00FF41?style=flat-square&labelColor=000000)](https://github.com/GuruGouthamKanchi/project-radar)
 [![License](https://img.shields.io/badge/LICENSE-MIT-white?style=flat-square&labelColor=000000)](LICENSE)
 
 </div>
@@ -26,6 +29,11 @@ It works on any phone, tablet, or desktop. Open the link. Pick your name. Start 
 ---
 
 ## ✨ Features
+
+**🔐 AES-GCM End-to-End Encryption** — Every coordinate is 
+encrypted before it touches Firebase. The encryption key lives 
+only in the URL hash — it never reaches any server. Even Firebase 
+cannot read your location.
 
 **🗺 Real-Time Radar HUD** — Military-style radar with sweep animation and a live Leaflet map. Every peer appears as a colored dot, updating in real time as they move.
 
@@ -122,14 +130,44 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
+## 🧪 Testing
+
+ProximaX has 39 unit tests across 3 test files with 100% pass rate.
+
+| Test file | Coverage | Tests |
+|---|---|---|
+| `haversine.test.ts` | Geodesic distance accuracy, symmetry, edge cases | 8 |
+| `locationValidator.test.ts` | Coordinate bounds, XSS prevention, timestamp drift, peerId validation | 19 |
+| `crypto.test.ts` | Key generation, AES-GCM round-trip, IV randomness, wrong-key rejection | 12 |
+
+Run the tests:
+```bash
+npm test
+```
+
+---
+
 ## 🔒 Privacy & Security
 
+- **AES-GCM end-to-end encryption** — every coordinate is encrypted 
+  client-side before writing to Firebase. The E2E key is derived from 
+  the URL hash and never sent to any server
+- **Zero server-side key knowledge** — Firebase stores only ciphertext. 
+  Only clients with the correct URL hash can decrypt coordinates
 - **Consent required** — no one shares location without explicitly agreeing
-- **Session-only** — location data is deleted the moment a peer stops sharing or closes the tab
-- **Validated writes** — every payload is validated client-side and enforced at the database level
-- **No persistent tracking** — rooms inactive for 24 hours are automatically cleaned up
-- **Server-side AI** — your Gemini API key never touches the browser
-- **Rate-limited push** — notification API is protected against spam and abuse
+- **Session-only** — location data is deleted the moment a peer stops 
+  sharing or closes the tab (Firebase onDisconnect)
+- **Validated writes** — every payload is validated client-side and 
+  enforced at the database level with Firebase security rules
+- **Timestamp drift protection** — payloads older than 60 seconds or 
+  more than 5 seconds in the future are rejected
+- **XSS prevention** — nicknames containing HTML characters are 
+  blocked at both the validator and Firebase rules level
+- **Rate-limited push API** — 1 notification per 5 seconds, 
+  20 per hour per IP
+- **No persistent tracking** — rooms inactive for 24 hours are 
+  automatically cleaned up
+- **Server-side AI** — Gemini API key never touches the browser
 
 ---
 
@@ -154,13 +192,8 @@ MIT — see [LICENSE](LICENSE) for details.
 ## 👨‍💻 Author
 
 <a href="https://github.com/GuruGouthamKanchi">
-  <img src="https://github.com/GuruGouthamKanchi.png" width="60" height="60" style="border-radius:50%" alt="GuruGouthamKanchi"/>
+  <img src="https://github.com/GuruGouthamKanchi.png" 
+       width="60" height="60" alt="GuruGouthamKanchi"/>
 </a>
 
-**GuruGouthamKanchi**
-
-<!-- <div align="center">
-
-Built by [GuruGouthamKanchi](https://github.com/GuruGouthamKanchi)
-
-</div> -->
+**[GuruGouthamKanchi](https://github.com/GuruGouthamKanchi)**
