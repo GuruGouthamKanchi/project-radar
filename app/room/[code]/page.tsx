@@ -44,12 +44,19 @@ export default function TrackerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [history, setHistory] = useState<Record<string, { lat: number; lng: number; ts: number }[]>>({});
   const [trailEnabled, setTrailEnabled] = useState(true);
+  const [e2eKey, setE2eKey] = useState("");
   const [geoError, setGeoError] = useState<string | null>(null);
   const [firebaseConnected, setFirebaseConnected] = useState<boolean | null>(null);
   const [gpsActive, setGpsActive] = useState(true);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deferredPrompt, setDeferredPrompt] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setE2eKey(window.location.hash.slice(1));
+    }
+  }, []);
 
   // Monitor Firebase Realtime Database connection status
   useEffect(() => {
@@ -437,7 +444,7 @@ export default function TrackerDashboard() {
         return;
       }
 
-      const hashKey = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
+      const hashKey = e2eKey;
 
       const promises = Object.keys(data).map(async (key) => {
         const item = data[key];
@@ -475,7 +482,7 @@ export default function TrackerDashboard() {
     });
 
     return () => unsubscribe();
-  }, [code, updateFilteredPeople]);
+  }, [code, updateFilteredPeople, e2eKey]);
 
   const triggerProximityAlert = useCallback(async (person: TrackedPerson, distance: number) => {
     // Add local UI banner alert
@@ -567,11 +574,10 @@ export default function TrackerDashboard() {
 
   const copyShareLink = () => {
     if (typeof window !== "undefined") {
-      const hash = window.location.hash; // contains #e2eKey if present
-      const shareUrl = `${window.location.origin}/room/${code}/share${hash}`;
+      const shareUrl = `${window.location.origin}/room/${code}/share#${e2eKey}`;
       navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 1500);
     }
   };
 
