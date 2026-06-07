@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![ProximaX Banner](https://img.shields.io/badge/PROXIMAX-REAL--TIME%20LOCATION%20RADAR-00FF41?style=for-the-badge&labelColor=000000)
+<img src="public/readme_banner.png" alt="ProximaX Banner" width="100%" />
 
 **NO APP. NO INSTALL. JUST OPEN A LINK.**
 
