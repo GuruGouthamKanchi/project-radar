@@ -18,13 +18,14 @@ export default function ShareLocationPage() {
   const params = useParams();
   const roomCode = (params.code as string).toLowerCase();
 
-  const [phase, setPhase] = useState<'consent' | 'broadcasting' | 'stopped'>('consent');
+  const [phase, setPhase] = useState<'consent' | 'broadcasting'>('consent');
   const [displayName, setDisplayName] = useState("");
   const [beaconColor, setBeaconColor] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number; heading: number | null } | null>(null);
   const [peerId, setPeerId] = useState("");
   const [isStopping, setIsStopping] = useState(false);
   const [geoError, setGeoError] = useState("");
+  const [formError, setFormError] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [e2eKey, setE2eKey] = useState("");
 
@@ -54,42 +55,85 @@ export default function ShareLocationPage() {
     };
   }, [peerId, roomCode]);
 
-  const handleStart = (e: React.FormEvent) => {
+  const handleStartSharing = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!displayName.trim() || !beaconColor) return;
+    if (!displayName.trim()) {
+      setFormError('Display name is required');
+      return;
+    }
+    if (!beaconColor) {
+      setFormError('Please select a beacon color');
+      return;
+    }
+    setFormError('');
 
     localStorage.setItem("proximax_nickname", displayName.trim());
     localStorage.setItem("proximax_color", beaconColor);
 
-    const generatedPeerId = "peer_" + Math.random().toString(36).substring(2, 15);
-    setPeerId(generatedPeerId);
+    const newPeerId = Math.random().toString(36).substring(2, 10) +
+                      Math.random().toString(36).substring(2, 10);
+    setPeerId(newPeerId);
     setGeoError("");
     setCoords(null);
+    setPhase('broadcasting');
     isBroadcastingRef.current = true;
 
     if ("geolocation" in navigator) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         async (position) => {
           if (!isBroadcastingRef.current) return;
-          // functional update to avoid stale closures in React rendering cycles
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setCoords(() => ({
+            lat,
+            lng,
+            heading: position.coords.heading ?? null,
+          }));
+          try {
+            await writeLocation(roomCode, newPeerId, position, displayName.trim(), beaconColor);
+          } catch (err) {
+            console.error('Write location error:', err);
+          }
+        },
+        (err) => {
+          if (err.code === 1) setGeoError("Location permission denied. Please enable it in browser settings.");
+          else if (err.code === 2) setGeoError("Location signal unavailable. Move to an open area.");
+          else if (err.code === 3) setGeoError("Location timed out. Retrying...");
+          else setGeoError(err.message);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } else {
+      setGeoError("Geolocation is not supported by your browser.");
+    }
+  };
+
+  const handleRetryLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
           setCoords(() => ({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
             heading: position.coords.heading ?? null,
           }));
-          await writeLocation(roomCode, generatedPeerId, position, displayName.trim(), beaconColor);
+          setGeoError("");
+          if (peerId) {
+            try {
+              await writeLocation(roomCode, peerId, position, displayName.trim(), beaconColor);
+            } catch (err) {
+              console.error('Write location error:', err);
+            }
+          }
         },
         (err) => {
-          if (err.code === 1) setGeoError("Location permission denied.");
-          else if (err.code === 2) setGeoError("Location signal unavailable.");
+          if (err.code === 1) setGeoError("Location permission denied. Please enable it in browser settings.");
+          else if (err.code === 2) setGeoError("Location signal unavailable. Move to an open area.");
           else if (err.code === 3) setGeoError("Location timed out. Retrying...");
           else setGeoError(err.message);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
-      setPhase('broadcasting');
-    } else {
-      setGeoError("Geolocation is not supported by your browser.");
     }
   };
 
@@ -165,7 +209,7 @@ export default function ShareLocationPage() {
               SHARE LIVE GPS COORDINATES WITH THE ROOM TRACKER. CONSENT IS REQUIRED.
             </p>
 
-            <form onSubmit={handleStart} className="w-full flex flex-col gap-4">
+            <form onSubmit={handleStartSharing} className="w-full flex flex-col gap-4">
               <div className="flex flex-col gap-1 text-left">
                 <label htmlFor="name-input" className="ui-label text-[8px] tracking-wider">
                   DISPLAY NAME (REQUIRED)
@@ -215,11 +259,16 @@ export default function ShareLocationPage() {
 
               <button
                 type="submit"
-                disabled={!displayName.trim() || !beaconColor}
                 className="w-full py-3 bg-accent text-bg-primary text-xs font-bold uppercase tracking-widest rounded hover:bg-accent/90 transition-colors duration-150 shadow-[0_0_15px_rgba(56,189,248,0.2)] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 START SHARING LOCATION
               </button>
+
+              {formError && (
+                <p className="text-[10px] text-red-500 font-mono font-bold uppercase tracking-wider mt-2">
+                  ⚠️ {formError}
+                </p>
+              )}
             </form>
           </div>
         </div>
@@ -262,6 +311,23 @@ export default function ShareLocationPage() {
             </span>
           </div>
 
+          {geoError && (
+            <div className="p-2.5 bg-red-950/20 border border-red-500/30 rounded flex items-center justify-between gap-2">
+              <div className="flex gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <p className="text-[9px] text-red-400 uppercase tracking-wider leading-relaxed">
+                  GPS FEED ERROR: {geoError}
+                </p>
+              </div>
+              <button
+                onClick={handleRetryLocation}
+                className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white font-mono font-bold text-[8px] uppercase tracking-wider rounded transition-colors flex-shrink-0"
+              >
+                RETRY LOCATION
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1">
             <span className="ui-label text-[8px]">COORDINATES</span>
             <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-bg-secondary p-2.5 border border-border rounded">
@@ -279,15 +345,6 @@ export default function ShareLocationPage() {
               </div>
             </div>
           </div>
-
-          {geoError && (
-            <div className="p-2.5 bg-warning/15 border border-warning/30 rounded flex gap-2">
-              <ShieldAlert className="w-4 h-4 text-warning flex-shrink-0" />
-              <p className="text-[9px] text-warning uppercase tracking-wider leading-relaxed">
-                GPS FEED ERROR: {geoError.toUpperCase()}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Live Mini-Map */}
