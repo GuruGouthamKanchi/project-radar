@@ -48,9 +48,9 @@ export function validateLocationPayload(data: unknown): ValidationResult {
   if (typeof ts !== "number" || !Number.isFinite(ts)) {
     return { valid: false, error: "ts must be a number" };
   }
-  const diff = Math.abs(ts - Date.now());
-  if (diff > 60000) {
-    return { valid: false, error: "ts is not within 60 seconds of server time" };
+  const now = Date.now();
+  if (ts < now - 60000 || ts > now + 5000) {
+    return { valid: false, error: "ts is not within valid server time window" };
   }
 
   // Validate peerId
