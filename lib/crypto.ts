@@ -21,10 +21,12 @@ async function deriveKey(password: string): Promise<CryptoKey> {
 }
 
 function fallbackEncrypt(text: string, key: string): string {
-  const code = text.split("").map((c, i) => {
+  const salt = Math.random().toString(36).substring(2, 10).padEnd(8, '0');
+  const salted = salt + text;
+  const code = salted.split("").map((c, i) => {
     return c.charCodeAt(0) ^ key.charCodeAt(i % key.length);
   });
-  return "fb:" + btoa(JSON.stringify(code));
+  return "fb:" + salt + btoa(JSON.stringify(code));
 }
 
 function fallbackDecrypt(ciphertext: string, key: string): string {
@@ -33,12 +35,15 @@ function fallbackDecrypt(ciphertext: string, key: string): string {
     cleanText = ciphertext.substring(3);
   }
   try {
-    const decoded = JSON.parse(atob(cleanText));
-    return decoded
+    const salt = cleanText.substring(0, 8);
+    const xorResult = cleanText.substring(8);
+    const decoded = JSON.parse(atob(xorResult));
+    const decryptedSalted = decoded
       .map((c: number, i: number) => {
         return String.fromCharCode(c ^ key.charCodeAt(i % key.length));
       })
       .join("");
+    return decryptedSalted.substring(8);
   } catch {
     throw new Error("Fallback decryption failed");
   }
