@@ -151,8 +151,16 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-<div align="center">
+## 👨‍💻 Author
+
+<a href="https://github.com/GuruGouthamKanchi">
+  <img src="https://github.com/GuruGouthamKanchi.png" width="60" height="60" style="border-radius:50%" alt="GuruGouthamKanchi"/>
+</a>
+
+**GuruGouthamKanchi**
+
+<!-- <div align="center">
 
 Built by [GuruGouthamKanchi](https://github.com/GuruGouthamKanchi)
 
-</div>
+</div> -->
