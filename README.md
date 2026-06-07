@@ -1,5 +1,3 @@
-![ProximaX Banner](public/banner.png)
-
 # 📡 ProximaX — Real-Time Location Radar
 
 <div align="center">
