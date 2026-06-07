@@ -35,7 +35,6 @@ function fallbackDecrypt(ciphertext: string, key: string): string {
     cleanText = ciphertext.substring(3);
   }
   try {
-    const salt = cleanText.substring(0, 8);
     const xorResult = cleanText.substring(8);
     const decoded = JSON.parse(atob(xorResult));
     const decryptedSalted = decoded
