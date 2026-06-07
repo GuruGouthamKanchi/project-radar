@@ -10,7 +10,8 @@ export async function writeLocation(
   roomCode: string,
   peerId: string,
   position: GeolocationPosition,
-  nickname?: string
+  nickname?: string,
+  color?: string
 ): Promise<void> {
   const payload: LocationPayload = {
     lat: position.coords.latitude,
@@ -21,6 +22,10 @@ export async function writeLocation(
 
   if (nickname !== undefined && nickname !== null && nickname !== "") {
     payload.nickname = nickname;
+  }
+
+  if (color !== undefined && color !== null && color !== "") {
+    payload.color = color;
   }
 
   if (typeof position.coords.accuracy === "number" && position.coords.accuracy > 0) {
