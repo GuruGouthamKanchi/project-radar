@@ -13,7 +13,7 @@ import RadiusSlider from "@/components/RadiusSlider";
 
 import AlertBanner, { AlertNotification } from "@/components/AlertBanner";
 import { decryptLocation } from "@/lib/crypto";
-import { Compass, Users, MapPin, Radio, Bell, BellOff, Info, Share2, Clipboard, ArrowLeft, Check, ShieldAlert } from "lucide-react";
+import { Compass, Users, MapPin, Radio, Bell, BellOff, Info, Share2, Clipboard, ArrowLeft, Check, ShieldAlert, ChevronDown, ChevronUp } from "lucide-react";
 
 const RadarMap = dynamic(() => import("@/components/RadarMap"), { ssr: false });
 
@@ -98,6 +98,7 @@ export default function TrackerDashboard() {
   const [aiError, setAiError] = useState(false);
   const [aiLastUpdated, setAiLastUpdated] = useState<number | null>(null);
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState(0);
+  const [aiPanelExpanded, setAiPanelExpanded] = useState(true);
 
   const [sosActive, setSosActive] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -807,109 +808,129 @@ export default function TrackerDashboard() {
           </button>
         </div>
 
-        {/* AI Insight Panel */}
-        <div className="bg-bg-secondary border-t border-border p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono-code text-[10px] uppercase tracking-wider relative">
-          <div className="flex flex-col gap-2 flex-grow">
-            {/* Header: AI Label & Pulsing Indicator & Timestamp */}
-            <div className="flex items-center gap-2 text-text-muted">
-              <span className="bg-accent/10 border border-accent/30 text-accent px-1.5 py-0.5 rounded font-bold">AI ANALYST</span>
+        {/* Collapsible AI Panel Trigger */}
+        <div 
+          onClick={() => setAiPanelExpanded(!aiPanelExpanded)}
+          className="bg-bg-secondary border-t border-border px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-bg-card transition-colors select-none text-[9px] font-bold tracking-widest text-text-muted hover:text-text-primary z-20"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${aiLoading ? "bg-accent animate-pulse" : "bg-success"}`} />
+            TACTICAL AI HUD
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span>{aiPanelExpanded ? "HIDE SYSTEM" : "SHOW SYSTEM"}</span>
+            {aiPanelExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </div>
+        </div>
+
+        {/* Collapsible AI Panel Content */}
+        <div className={`transition-all duration-300 ease-in-out overflow-hidden flex flex-col ${
+          aiPanelExpanded ? "max-h-[500px] opacity-100 border-b border-border" : "max-h-0 opacity-0 pointer-events-none"
+        }`}>
+          {/* AI Insight Panel */}
+          <div className="bg-bg-secondary border-t border-border p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono-code text-[10px] uppercase tracking-wider relative">
+            <div className="flex flex-col gap-2 flex-grow">
+              {/* Header: AI Label & Pulsing Indicator & Timestamp */}
+              <div className="flex items-center gap-2 text-text-muted">
+                <span className="bg-accent/10 border border-accent/30 text-accent px-1.5 py-0.5 rounded font-bold">AI ANALYST</span>
+                {sosActive ? (
+                  <div className="flex items-center gap-1 text-red-500 font-bold animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                    <span>EMERGENCY ALERT ACTIVE</span>
+                  </div>
+                ) : aiLoading ? (
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+                    <span>ANALYSING SECURE FEED...</span>
+                  </div>
+                ) : aiError ? (
+                  <span className="text-red-500 font-bold">AI OFFLINE</span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                    <span className="text-[9px]">UPDATED {secondsSinceUpdate}S AGO</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Content body */}
               {sosActive ? (
-                <div className="flex items-center gap-1 text-red-500 font-bold animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                  <span>EMERGENCY ALERT ACTIVE</span>
+                <div className="flex flex-col gap-1 text-red-500 font-bold border border-red-500/20 bg-red-500/5 p-2 rounded">
+                  <div><span className="text-text-muted">SOS BROADCAST:</span> {sosTriageMessage || "ACQUIRING SOS DATA..."}</div>
                 </div>
-              ) : aiLoading ? (
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
-                  <span>ANALYSING SECURE FEED...</span>
+              ) : aiLoading && !aiInsight ? (
+                <div className="space-y-1 animate-pulse">
+                  <div className="h-3 bg-bg-card border border-border/30 rounded w-3/4" />
+                  <div className="h-3 bg-bg-card border border-border/30 rounded w-1/2" />
                 </div>
               ) : aiError ? (
-                <span className="text-red-500 font-bold">AI OFFLINE</span>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                  <span className="text-[9px]">UPDATED {secondsSinceUpdate}S AGO</span>
+                <div className="text-text-dim">UNABLE TO REACH AI PROXIMITY ANALYST. RETRYING ON NEXT CYCLE.</div>
+              ) : aiInsight ? (
+                <div className="flex flex-col gap-1 text-text-primary">
+                  <div><span className="text-text-muted">SITREP:</span> {aiInsight.summary}</div>
+                  {aiInsight.anomalies && (
+                    <div className="text-warning"><span className="text-text-muted">ANOMALIES:</span> {aiInsight.anomalies}</div>
+                  )}
                 </div>
+              ) : (
+                <div className="text-text-dim">AWAITING SYSTEM SYNCHRONIZATION...</div>
               )}
             </div>
 
-            {/* Content body */}
-            {sosActive ? (
-              <div className="flex flex-col gap-1 text-red-500 font-bold border border-red-500/20 bg-red-500/5 p-2 rounded">
-                <div><span className="text-text-muted">SOS BROADCAST:</span> {sosTriageMessage || "ACQUIRING SOS DATA..."}</div>
+            {/* Level Badge */}
+            {(sosActive || (aiInsight && !aiLoading && !aiError)) && (
+              <div className="flex-shrink-0 flex items-center">
+                {(() => {
+                  if (sosActive) {
+                    return (
+                      <div className="border border-red-500 text-red-500 bg-red-500/10 px-3 py-1.5 rounded font-bold text-center animate-pulse">
+                        THREAT LEVEL: CRITICAL (SOS)
+                      </div>
+                    );
+                  }
+                  const level = aiInsight!.level.toUpperCase();
+                  let badgeColor = "border-success text-success bg-success/10";
+                  if (level.includes("HIGH")) {
+                    badgeColor = "border-red-500 text-red-500 bg-red-500/10";
+                  } else if (level.includes("MEDIUM") || level.includes("AMBER")) {
+                    badgeColor = "border-warning text-warning bg-warning/10";
+                  }
+                  return (
+                    <div className={`border px-3 py-1.5 rounded font-bold text-center ${badgeColor}`}>
+                      THREAT LEVEL: {level}
+                    </div>
+                  );
+                })()}
               </div>
-            ) : aiLoading && !aiInsight ? (
-              <div className="space-y-1 animate-pulse">
-                <div className="h-3 bg-bg-card border border-border/30 rounded w-3/4" />
-                <div className="h-3 bg-bg-card border border-border/30 rounded w-1/2" />
-              </div>
-            ) : aiError ? (
-              <div className="text-text-dim">UNABLE TO REACH AI PROXIMITY ANALYST. RETRYING ON NEXT CYCLE.</div>
-            ) : aiInsight ? (
-              <div className="flex flex-col gap-1 text-text-primary">
-                <div><span className="text-text-muted">SITREP:</span> {aiInsight.summary}</div>
-                {aiInsight.anomalies && (
-                  <div className="text-warning"><span className="text-text-muted">ANOMALIES:</span> {aiInsight.anomalies}</div>
-                )}
-              </div>
-            ) : (
-              <div className="text-text-dim">AWAITING SYSTEM SYNCHRONIZATION...</div>
             )}
           </div>
 
-          {/* Level Badge */}
-          {(sosActive || (aiInsight && !aiLoading && !aiError)) && (
-            <div className="flex-shrink-0 flex items-center">
-              {(() => {
-                if (sosActive) {
-                  return (
-                    <div className="border border-red-500 text-red-500 bg-red-500/10 px-3 py-1.5 rounded font-bold text-center animate-pulse">
-                      THREAT LEVEL: CRITICAL (SOS)
-                    </div>
-                  );
-                }
-                const level = aiInsight!.level.toUpperCase();
-                let badgeColor = "border-success text-success bg-success/10";
-                if (level.includes("HIGH")) {
-                  badgeColor = "border-red-500 text-red-500 bg-red-500/10";
-                } else if (level.includes("MEDIUM") || level.includes("AMBER")) {
-                  badgeColor = "border-warning text-warning bg-warning/10";
-                }
-                return (
-                  <div className={`border px-3 py-1.5 rounded font-bold text-center ${badgeColor}`}>
-                    THREAT LEVEL: {level}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* Natural Language Command Bar */}
-        <div className="bg-bg-secondary border-t border-border p-3 flex flex-col gap-2 font-mono-code text-[10px] z-20">
-          <form onSubmit={handleCommandSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={commandText}
-              onChange={(e) => setCommandText(e.target.value)}
-              placeholder="ASK OR COMMAND THE RADAR (E.G. 'ZOOM ON RAJ', 'SET RADIUS TO 300M')..."
-              disabled={commandLoading}
-              className="flex-grow px-3 py-2 bg-bg-card border border-border rounded text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent uppercase tracking-widest text-xs"
-            />
-            <button
-              type="submit"
-              disabled={commandLoading}
-              className="px-4 py-2 bg-accent hover:bg-accent/90 text-bg-primary font-bold text-xs uppercase tracking-widest rounded transition-colors disabled:opacity-50"
-            >
-              {commandLoading ? "PARSING..." : "EXECUTE"}
-            </button>
-          </form>
-          {aiReply && (
-            <div className="px-3 py-1.5 bg-bg-card/60 border border-border/40 rounded text-accent flex items-center gap-1.5 animate-fade-in text-[9px] tracking-wider uppercase">
-              <span className="h-1 w-1 bg-accent rounded-full animate-ping" />
-              <span>COMMAND RESPONSE: {aiReply}</span>
-            </div>
-          )}
+          {/* Natural Language Command Bar */}
+          <div className="bg-bg-secondary border-t border-border p-3 flex flex-col gap-2 font-mono-code text-[10px] z-20">
+            <form onSubmit={handleCommandSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={commandText}
+                onChange={(e) => setCommandText(e.target.value)}
+                placeholder="ASK OR COMMAND THE RADAR (E.G. 'ZOOM ON RAJ', 'SET RADIUS TO 300M')..."
+                disabled={commandLoading}
+                className="flex-grow px-3 py-2 bg-bg-card border border-border rounded text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent uppercase tracking-widest text-xs"
+              />
+              <button
+                type="submit"
+                disabled={commandLoading}
+                className="px-4 py-2 bg-accent hover:bg-accent/90 text-bg-primary font-bold text-xs uppercase tracking-widest rounded transition-colors disabled:opacity-50"
+              >
+                {commandLoading ? "PARSING..." : "EXECUTE"}
+              </button>
+            </form>
+            {aiReply && (
+              <div className="px-3 py-1.5 bg-bg-card/60 border border-border/40 rounded text-accent flex items-center gap-1.5 animate-fade-in text-[9px] tracking-wider uppercase">
+                <span className="h-1 w-1 bg-accent rounded-full animate-ping" />
+                <span>COMMAND RESPONSE: {aiReply}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* STAT STRIP (bottom) */}
