@@ -3,6 +3,7 @@ import { ref, set, onDisconnect } from "firebase/database";
 import { db } from "./firebase";
 import { haversine } from "./haversine";
 import { LocationPayload } from "./locationValidator";
+import { removeLocation } from "./firebaseLocation";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useLocation(roomCode: string, encryptionKey?: string) {
@@ -15,6 +16,7 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
   } | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
+  const isTrackingRef = useRef<boolean>(false);
   const uploadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestLocationRef = useRef<{ lat: number; lng: number; heading: number | null } | null>(null);
   const nameRef = useRef<string>("Anonymous");
@@ -64,13 +66,20 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
         window.removeEventListener("online", handleOnline);
         if (watchIdRef.current !== null) {
           navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
         }
         if (uploadTimeoutRef.current !== null) {
           clearTimeout(uploadTimeoutRef.current);
+          uploadTimeoutRef.current = null;
+        }
+        if (uidRef.current) {
+          removeLocation(roomCode, uidRef.current).catch((err) =>
+            console.error("On unmount cleanup failed:", err)
+          );
         }
       };
     }
-  }, []);
+  }, [roomCode]);
 
   const uploadLocation = async () => {
     if (!latestLocationRef.current || !uidRef.current) return;
@@ -146,7 +155,7 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
     if (uploadTimeoutRef.current) clearTimeout(uploadTimeoutRef.current);
     uploadTimeoutRef.current = setTimeout(async () => {
       await uploadLocation();
-      if (isTracking) {
+      if (isTrackingRef.current) {
         scheduleNextUpload(currentIntervalRef.current);
       }
     }, delay);
@@ -160,6 +169,7 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
 
     setError(null);
     setIsTracking(true);
+    isTrackingRef.current = true;
     nameRef.current = displayName || "Anonymous";
 
     const handleSuccess = (position: GeolocationPosition) => {
@@ -201,6 +211,7 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
 
   const stopTracking = async () => {
     setIsTracking(false);
+    isTrackingRef.current = false;
 
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -213,10 +224,9 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
     }
 
     if (uidRef.current) {
-      const userRef = ref(db, `rooms/${roomCode}/peers/${uidRef.current}`);
-      const sosRef = ref(db, `rooms/${roomCode}/sos/${uidRef.current}`);
       try {
-        await set(userRef, null);
+        await removeLocation(roomCode, uidRef.current);
+        const sosRef = ref(db, `rooms/${roomCode}/sos/${uidRef.current}`);
         await set(sosRef, null);
       } catch (err) {
         console.error("Failed to remove location/SOS on stop:", err);
