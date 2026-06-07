@@ -151,7 +151,7 @@ export default function TrackerDashboard() {
     }
   }, [code]);
 
-  // Run AI SOS triage coordinator on change
+  // Process SOS notifications locally on change
   useEffect(() => {
     if (!sosActive || !sosData) {
       lastProcessedSosRef.current = null;
@@ -164,34 +164,13 @@ export default function TrackerDashboard() {
       return;
     }
 
-    const triggerSosTriage = async () => {
-      lastProcessedSosRef.current = sosPeerId + "_" + sosPeer.ts;
-      try {
-        const response = await fetch("/api/ai-sos-triage", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sosPeer,
-            allPeers: people,
-          }),
-        });
+    lastProcessedSosRef.current = sosPeerId + "_" + sosPeer.ts;
+    const alertMsg = `${sosPeer.nickname || 'An agent'} activated SOS at [${sosPeer.lat.toFixed(6)}, ${sosPeer.lng.toFixed(6)}]!`;
+    setSosTriageMessage(alertMsg);
 
-        if (!response.ok) throw new Error("Triage coordinator request failed");
-
-        const data = await response.json();
-        setSosTriageMessage(data.triageMessage);
-
-        // Notify all peers immediately
-        await broadcastSosPush(data.triageMessage);
-      } catch (err) {
-        console.error("SOS Triage failed:", err);
-      }
-    };
-
-    triggerSosTriage();
-  }, [sosActive, sosData, people, broadcastSosPush]);
+    // Notify all peers immediately
+    broadcastSosPush(alertMsg);
+  }, [sosActive, sosData, broadcastSosPush]);
 
   const fetchAIInsight = useCallback(async () => {
     if (!trackerPos) return;
@@ -837,7 +816,7 @@ export default function TrackerDashboard() {
               {sosActive ? (
                 <div className="flex items-center gap-1 text-red-500 font-bold animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                  <span>EMERGENCY DIRECTIVE DETECTED</span>
+                  <span>EMERGENCY ALERT ACTIVE</span>
                 </div>
               ) : aiLoading ? (
                 <div className="flex items-center gap-1">
@@ -857,7 +836,7 @@ export default function TrackerDashboard() {
             {/* Content body */}
             {sosActive ? (
               <div className="flex flex-col gap-1 text-red-500 font-bold border border-red-500/20 bg-red-500/5 p-2 rounded">
-                <div><span className="text-text-muted">TRIAGE DIRECTIVE:</span> {sosTriageMessage || "ACQUIRING AI EMERGENCY PLAN..."}</div>
+                <div><span className="text-text-muted">SOS BROADCAST:</span> {sosTriageMessage || "ACQUIRING SOS DATA..."}</div>
               </div>
             ) : aiLoading && !aiInsight ? (
               <div className="space-y-1 animate-pulse">
