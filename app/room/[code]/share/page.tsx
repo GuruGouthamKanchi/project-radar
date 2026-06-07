@@ -25,7 +25,7 @@ export default function ShareLocationPage() {
     }
   }, []);
 
-  const { isTracking, error, currentLocation, startTracking, stopTracking, uid } =
+  const { isTracking, isStopping, error, currentLocation, startTracking, stopTracking, uid } =
     useLocation(code, e2eKey);
   const [displayName, setDisplayName] = useState("");
 
@@ -164,10 +164,11 @@ export default function ShareLocationPage() {
 
         <button
           onClick={stopTracking}
-          className="w-full py-3.5 bg-warning/20 border border-warning text-warning font-mono font-bold text-xs uppercase tracking-widest rounded hover:bg-warning hover:text-bg-primary transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] flex items-center justify-center gap-2"
+          disabled={isStopping}
+          className="w-full py-3.5 bg-warning/20 border border-warning text-warning font-mono font-bold text-xs uppercase tracking-widest rounded hover:bg-warning hover:text-bg-primary transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <Power className="w-4 h-4" />
-          STOP LIVE BROADCAST
+          {isStopping ? "STOPPING..." : "STOP LIVE BROADCAST"}
         </button>
 
         <div className="p-2.5 bg-bg-card/50 border border-border/50 rounded flex gap-2">

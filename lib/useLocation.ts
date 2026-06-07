@@ -8,6 +8,7 @@ import { removeLocation } from "./firebaseLocation";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useLocation(roomCode: string, encryptionKey?: string) {
   const [isTracking, setIsTracking] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{
     lat: number;
@@ -176,7 +177,10 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
       const { latitude, longitude, heading } = position.coords;
       const newLoc = { lat: latitude, lng: longitude, heading: heading ?? null };
       latestLocationRef.current = newLoc;
-      setCurrentLocation(newLoc);
+      setCurrentLocation((prev) => {
+        // functional update to avoid stale closures
+        return { lat: latitude, lng: longitude, heading: heading ?? null };
+      });
     };
 
     const handleError = (err: GeolocationPositionError) => {
@@ -210,35 +214,38 @@ export function useLocation(roomCode: string, encryptionKey?: string) {
   };
 
   const stopTracking = async () => {
-    setIsTracking(false);
-    isTrackingRef.current = false;
+    setIsStopping(true);
+    try {
+      setIsTracking(false);
+      isTrackingRef.current = false;
 
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
 
-    if (uploadTimeoutRef.current !== null) {
-      clearTimeout(uploadTimeoutRef.current);
-      uploadTimeoutRef.current = null;
-    }
+      if (uploadTimeoutRef.current !== null) {
+        clearTimeout(uploadTimeoutRef.current);
+        uploadTimeoutRef.current = null;
+      }
 
-    if (uidRef.current) {
-      try {
+      if (uidRef.current) {
         await removeLocation(roomCode, uidRef.current);
         const sosRef = ref(db, `rooms/${roomCode}/sos/${uidRef.current}`);
         await set(sosRef, null);
-      } catch (err) {
-        console.error("Failed to remove location/SOS on stop:", err);
       }
+    } catch (err) {
+      console.error("Stop broadcast error:", err);
+    } finally {
+      setIsStopping(false);
+      latestLocationRef.current = null;
+      setCurrentLocation(null);
     }
-
-    latestLocationRef.current = null;
-    setCurrentLocation(null);
   };
 
   return {
     isTracking,
+    isStopping,
     error,
     currentLocation,
     startTracking,

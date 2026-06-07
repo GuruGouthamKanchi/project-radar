@@ -15,7 +15,7 @@ export async function writeLocation(
   const payload: LocationPayload = {
     lat: position.coords.latitude,
     lng: position.coords.longitude,
-    ts: position.timestamp,
+    ts: Date.now(),
     peerId,
   };
 
