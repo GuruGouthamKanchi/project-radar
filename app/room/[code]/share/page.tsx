@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import { ShieldAlert, Power, Info, Navigation, ShieldCheck } from "lucide-react";
+import { ShieldAlert, Power, Info, Navigation, ShieldCheck, AlertOctagon } from "lucide-react";
 import { writeLocation, removeLocation } from "@/lib/firebaseLocation";
+import { db } from "@/lib/firebase";
+import { ref, set, onDisconnect } from "firebase/database";
 
 const TrackedMiniMap = dynamic(() => import("@/components/TrackedMiniMap"), {
   ssr: false,
@@ -21,6 +23,8 @@ export default function ShareLocationPage() {
   const [isStopping, setIsStopping] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
+  const [sosActive, setSosActive] = useState(false);
+  const [isSosLoading, setIsSosLoading] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
   const peerIdRef = useRef<string>('');
@@ -44,6 +48,10 @@ export default function ShareLocationPage() {
       if (peerIdRef.current) {
         removeLocation(roomCode, peerIdRef.current).catch((err) => {
           console.error("Cleanup removeLocation failed:", err);
+        });
+        const sosRef = ref(db, `rooms/${roomCode}/sos/${peerIdRef.current}`);
+        set(sosRef, null).catch((err) => {
+          console.error("Cleanup SOS failed:", err);
         });
       }
     };
@@ -98,6 +106,40 @@ export default function ShareLocationPage() {
     }
   };
 
+  const handleSOSToggle = async () => {
+    if (!coords) {
+      alert("GPS coordinates not acquired yet. Cannot trigger SOS.");
+      return;
+    }
+
+    setIsSosLoading(true);
+    const sosRef = ref(db, `rooms/${roomCode}/sos/${peerIdRef.current}`);
+
+    try {
+      if (!sosActive) {
+        const payload = {
+          lat: coords.lat,
+          lng: coords.lng,
+          ts: Date.now(),
+          peerId: peerIdRef.current,
+          message: "SOS activated",
+          nickname: displayName.trim() || "Anonymous",
+        };
+        await set(sosRef, payload);
+        await onDisconnect(sosRef).remove();
+        setSosActive(true);
+      } else {
+        await set(sosRef, null);
+        setSosActive(false);
+      }
+    } catch (err) {
+      console.error("SOS toggle failed:", err);
+      alert("SOS transmission failed.");
+    } finally {
+      setIsSosLoading(false);
+    }
+  };
+
   const handleStop = async () => {
     setIsStopping(true);
     try {
@@ -106,12 +148,15 @@ export default function ShareLocationPage() {
         watchIdRef.current = null;
       }
       await removeLocation(roomCode, peerIdRef.current);
+      const sosRef = ref(db, `rooms/${roomCode}/sos/${peerIdRef.current}`);
+      await set(sosRef, null);
     } catch (err) {
       console.error('Stop failed:', err);
     } finally {
       setIsStopping(false);
       setCoords(null);
       setGeoError(null);
+      setSosActive(false);
       setPhase('consent');
     }
   };
@@ -279,6 +324,19 @@ export default function ShareLocationPage() {
 
       {/* Footer / Control Buttons */}
       <footer className="w-full max-w-md mx-auto mb-4 flex flex-col gap-3 z-20">
+        <button
+          onClick={handleSOSToggle}
+          disabled={isSosLoading || !coords}
+          className={`w-full py-3.5 border font-mono font-bold text-xs uppercase tracking-widest rounded transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+            sosActive
+              ? "bg-red-600 text-white border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)] animate-pulse"
+              : "bg-red-600/20 border-red-500 text-red-500 hover:bg-red-600 hover:text-white shadow-[0_0_15px_rgba(220,38,38,0.15)]"
+          }`}
+        >
+          <AlertOctagon className="w-4.5 h-4.5" />
+          {isSosLoading ? "TRANSMITTING..." : sosActive ? "DEACTIVATE SOS" : "ACTIVATE EMERGENCY SOS"}
+        </button>
+
         <button
           onClick={handleStop}
           disabled={isStopping}
